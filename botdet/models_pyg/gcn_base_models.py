@@ -243,8 +243,7 @@ class NodeModelAdditive(NodeModelBase):
 
 class NodeModelMLP(NodeModelBase):
     """
-    Update node features by applying a MLP on [node_features, edge_features].
-    The node features are normalized by out-degrees.
+        将MLP应用在[node_features, edge_features]上来更新节点特征，节点特征使用标准化的出度
     Note:
         This is currently the same as the :class:`NodeModelAdditive` method,
         for a single layer MLP without non-linearity.
@@ -256,12 +255,6 @@ class NodeModelMLP(NodeModelBase):
                  bias=True, mlp_nlay=1, mlp_nhid=32, mlp_act='relu',
                  **kwargs):
         super(NodeModelMLP, self).__init__(in_channels, out_channels, in_edgedim, deg_norm, edge_gate, aggr, **kwargs)
-
-        # self.in_channels = in_channels
-        # self.out_channels = out_channels
-        # self.in_edgedim = in_edgedim
-        # self.deg_norm = deg_norm
-        # self.aggr = aggr
 
         if in_edgedim is None:
             in_features = in_channels
@@ -335,11 +328,11 @@ class NodeModelMLP(NodeModelBase):
 
 class EdgeGateProj(nn.Module):
     """
-    Calculate gates for each edge in message passing.
-    It is a function of the source node feature, target node feature, and the edge feature.
-    First project these features then add them.
-    TODO:
-        edge_weight is not added in edge gate calculation now.
+        GRU标准门结构中输出门，表达式为:
+            r = σ(Wa + Uh)
+        其中，
+            a为边特征，这里使用的信息双向传递方式，因此Wa = W_in a_in + W_out a_out
+            h为邻域节点特征
     """
 
     def __init__(self, in_channels, in_edgedim=None, bias=False):

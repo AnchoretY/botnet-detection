@@ -67,22 +67,21 @@ def scatter_(name, src, index, dim_size=None, out=None):
 
 def softmax(src, index, num_nodes=None):
     r"""Computes a sparsely evaluated softmax.
+        计算稀疏向量的softmax
     Given a value tensor :attr:`botdet`, this function first groups those values
     along the first dimension based on the indices specified in :attr:`index`,
     and then proceeds to compute the softmax individually for each group.
     Args:
-        botdet (Tensor): The source tensor.
-        index (LongTensor): The indices of elements for applying the softmax.
-        num_nodes (int, optional): The number of nodes, *i.e.*
+        botdet (Tensor): 原始Tensor
+        index (LongTensor):在第几维元素上应用softmax
+        num_nodes (int, optional): 节点数量
             :obj:`max_val + 1` of :attr:`index`. (default: :obj:`None`)
     :rtype: :class:`Tensor`
     """
-
     if num_nodes is None:
         num_nodes = index.max().item() + 1
 
-    out = src - torch_scatter.scatter_max(src, index, dim=0, dim_size=num_nodes,
-                                          fill_value=-1e16)[0][index]
+    out = src - torch_scatter.scatter_max(src, index, dim=0, dim_size=num_nodes)[0][index]
     # fill_value here above is crucial for correct operation!!
     out = out.exp()
     out = out / (

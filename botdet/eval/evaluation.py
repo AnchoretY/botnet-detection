@@ -6,10 +6,10 @@ from .metrics import *
 
 def eval_metrics(target, pred_prob, threshold=0.5):
     """
-    Calculate a group of evaluation metrics for a model's prediction for target binary labels.
+        计算各种模型预测结果的评价指标
 
-    :param target: must be numpy.ndarray or torch.Tensor.
-    :param pred_prob: should be the probabilities, instead of binary classification results.
+    :param target: 必须为numpy.ndarray或torch.Tensor.
+    :param pred_prob: 为分类可能性，不是分类标签
 
     :return: dict
     """

@@ -13,8 +13,8 @@ class NodeModelAttention(NodeModelBase):
     Note:
         - Inheritance to :class:`NodeModelBase` is only for organization purpose, which is actually not necessary
           So deg_norm=None, edge_gate=None, aggr='add' (defaults), and they are not currently used.
-        - When `att_combine` is 'cat', out_channels for 1 head is out_channels / nheads;
-          otherwise, it is out_channels for every head.
+        - 当att_combine为cat是，每个头的out_channel为out_channnels/nheads，
+          否则out_channel每个头都要有
     """
 
     def __init__(self, in_channels, out_channels, in_edgedim=None,
@@ -61,12 +61,14 @@ class NodeModelAttention(NodeModelBase):
         """
         x = torch.mm(x, self.weight).view(-1, self.nheads, self.out_channels_1head)  # size (N, n_heads, C_out_1head)
 
-        # lift the features to source and target nodes, size (E, nheads, C_out_1head) for each
+        # 对源节点和邻域节点的信息进行合并后线性变换
         x_j = torch.index_select(x, 0, edge_index[0])
         x_i = torch.index_select(x, 0, edge_index[1])
+        x_data = torch.cat([x_j, x_i], dim=-1) * self.att_weight
 
-        # calculate attention coefficients, size (E, nheads)
-        alpha = self.att_act((torch.cat([x_j, x_i], dim=-1) * self.att_weight).sum(dim=-1))
+
+        # 计算注意力的因子, size (E, nheads)
+        alpha = self.att_act(x_data.sum(dim=-1))
 
         # softmax over each node's neighborhood, size (E, nheads)
         if self.att_dir == 'out':
@@ -76,28 +78,16 @@ class NodeModelAttention(NodeModelBase):
             # attend over nodes that all points to the current one
             alpha = softmax(alpha, edge_index[1], num_nodes=x.size(0))
 
-        # dropout on attention coefficients (which means that during training, the neighbors are stochastically sampled)
+        # 在attention系数上应用dropout（即在训练期间，邻居具有一定的随机采样性）
         alpha = self.att_dropout(alpha)
 
-        ''' 
-        # check attention entropy
-        if self.att_dir == 'out':
-            entropy = scatter_('add', -alpha * torch.log(alpha + 1e-16), edge_index[0], dim_size=x.size(0))
-        else:    # size (N, nheads)
-            entropy = scatter_('add', -alpha * torch.log(alpha + 1e-16), edge_index[1], dim_size=x.size(0))
-        # breakpoint()
-        entropy = entropy[deg > 100, :].mean()
-        entropy_max = (torch.log(deg[deg > 100] + 1e-16)).mean()
-        print(f'average attention entropy {entropy.item()} (average max entropy {entropy_max.item()})')
-        '''
-
-        # normalize messages on each edges with attention coefficients
+        # 使用attention系数来调节各个节点的信息比重
         x_j = x_j * alpha.view(-1, self.nheads, 1)
 
-        # aggregate features to nodes, resulting in size (N, n_heads, C_out_1head)
+        # 整合节点特征，（N,nheads,C_out_1head）
         x = scatter_(self.aggr, x_j, edge_index[1], dim_size=x.size(0))
 
-        # combine multi-heads, resulting in size (N, C_out)
+        # 合并多个头产生的结果,  (N, C_out)
         if self.att_combine == 'cat':
             x = x.view(-1, self.out_channels)
         elif self.att_combine == 'add':
@@ -105,7 +95,7 @@ class NodeModelAttention(NodeModelBase):
         else:
             x = x.mean(dim=1)
 
-        # add bias
+        # 添加 bias
         if self.bias is not None:
             x = x + self.bias
   
